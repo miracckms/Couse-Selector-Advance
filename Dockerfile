@@ -36,11 +36,13 @@ FROM eclipse-temurin:11-jre-alpine
 
 WORKDIR /app
 
-# Copy the built JAR
+# Copy the built JAR and entrypoint script
 COPY --from=backend-build /app/backend/target/*.jar app.jar
+COPY entrypoint.sh entrypoint.sh
+RUN chmod +x entrypoint.sh
 
 # Expose port
 EXPOSE 8080
 
-# Run
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Run via entrypoint (handles DATABASE_URL conversion for Render)
+ENTRYPOINT ["./entrypoint.sh"]

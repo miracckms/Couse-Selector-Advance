@@ -1,0 +1,34 @@
+databases:
+  - name: course-selector-db
+    plan: free
+    databaseName: course_selector_db
+    ipAllowList: []
+
+services:
+  - type: web
+    name: course-selector
+    plan: free
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: course-selector-db
+          property: connectionURI
+      - key: DB_DRIVER
+        value: org.postgresql.Driver
+      - key: HIBERNATE_DIALECT
+        value: org.hibernate.dialect.PostgreSQL10Dialect
+      - key: SHOW_SQL
+        value: "false"
+      - key: FORMAT_SQL
+        value: "false"
+      - key: YEDITEPE_USERNAME
+        sync: false
+      - key: YEDITEPE_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false

@@ -2,7 +2,7 @@ package com.yeditepe.courseselector.controller;
 
 import com.yeditepe.courseselector.service.DataSyncService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -32,7 +32,6 @@ public class DataSyncController {
      * Admin only
      */
     @PostMapping("/full")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> triggerFullSync() {
         try {
             dataSyncService.syncAllData();
@@ -48,7 +47,6 @@ public class DataSyncController {
      * Admin only
      */
     @PostMapping("/seasons")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> triggerSeasonsSync() {
         try {
             dataSyncService.syncSeasons();
@@ -64,7 +62,6 @@ public class DataSyncController {
      * Admin only
      */
     @PostMapping("/departments")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> triggerDepartmentsSync() {
         try {
             dataSyncService.syncDepartments();
@@ -80,7 +77,6 @@ public class DataSyncController {
      * Admin only
      */
     @PostMapping("/courses")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> triggerCoursesSync() {
         try {
             dataSyncService.syncCourses();

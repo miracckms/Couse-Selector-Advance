@@ -62,6 +62,7 @@ public class SecurityConfig {
                     .antMatchers("/api/schedule/generate").permitAll()
                     .antMatchers("/api/quota/**").permitAll()
                     .antMatchers("/api/cache/**").permitAll()
+                    .antMatchers("/api/sync/**").permitAll()
                     .antMatchers("/ws/**").permitAll()
                     // Protected API endpoints (require authentication)
                     .antMatchers("/api/**").authenticated()

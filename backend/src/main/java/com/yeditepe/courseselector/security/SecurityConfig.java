@@ -55,6 +55,7 @@ public class SecurityConfig {
                 .exceptionHandling().authenticationEntryPoint(unauthorizedHandler).and()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
                 .authorizeRequests()
+                    // Public API endpoints
                     .antMatchers("/api/auth/**").permitAll()
                     .antMatchers("/api/seasons", "/api/departments", "/api/calendar").permitAll()
                     .antMatchers("/api/courses/**").permitAll()
@@ -62,7 +63,10 @@ public class SecurityConfig {
                     .antMatchers("/api/quota/**").permitAll()
                     .antMatchers("/api/cache/**").permitAll()
                     .antMatchers("/ws/**").permitAll()
-                    .anyRequest().authenticated();
+                    // Protected API endpoints (require authentication)
+                    .antMatchers("/api/**").authenticated()
+                    // All non-API paths are public (static resources + SPA routes)
+                    .anyRequest().permitAll();
 
         http.authenticationProvider(authenticationProvider);
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);

@@ -15,6 +15,7 @@ import java.util.List;
  */
 @Entity
 @Table(name = "courses", indexes = {
+    @Index(name = "idx_season_id", columnList = "season_id"),
     @Index(name = "idx_season_dept", columnList = "season_id,department_id"),
     @Index(name = "idx_code", columnList = "code")
 })

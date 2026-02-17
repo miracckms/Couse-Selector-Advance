@@ -14,8 +14,14 @@ import java.util.Optional;
 public interface CourseRepository extends JpaRepository<Course, Long> {
     
     List<Course> findBySeasonIdAndDepartmentId(Long seasonId, Long departmentId);
+
+    @Query("SELECT DISTINCT c FROM Course c LEFT JOIN FETCH c.sections WHERE c.seasonId = :seasonId AND c.departmentId = :departmentId")
+    List<Course> findBySeasonIdAndDepartmentIdWithSections(@Param("seasonId") Long seasonId, @Param("departmentId") Long departmentId);
     
     List<Course> findBySeasonId(Long seasonId);
+
+    @Query("SELECT DISTINCT c FROM Course c LEFT JOIN FETCH c.sections WHERE c.seasonId = :seasonId")
+    List<Course> findBySeasonIdWithSections(@Param("seasonId") Long seasonId);
     
     Optional<Course> findBySeasonIdAndCodeAndSection(Long seasonId, String code, Integer section);
     

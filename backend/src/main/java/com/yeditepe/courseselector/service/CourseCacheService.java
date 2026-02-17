@@ -13,22 +13,27 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
- * Course Cache Service - Now database-backed
+ * Course Cache Service - Database-backed with in-memory cache
  * Data is synced from Yeditepe API to database by DataSyncService (daily at 06:00)
- * This service reads from database instead of memory cache
+ * Uses JOIN FETCH to avoid N+1 queries and in-memory cache for fast repeated access
  */
 @Service
 public class CourseCacheService {
 
     private static final Logger log = LoggerFactory.getLogger(CourseCacheService.class);
+    private static final long CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
     private final YeditepeApiService yeditepeApiService;
     private final AcademicSeasonRepository seasonRepository;
     private final DepartmentRepository departmentRepository;
     private final CourseRepository courseRepository;
+
+    // In-memory cache
+    private final ConcurrentHashMap<String, CacheEntry<?>> memoryCache = new ConcurrentHashMap<>();
 
     public CourseCacheService(YeditepeApiService yeditepeApiService,
                              AcademicSeasonRepository seasonRepository,
@@ -38,6 +43,35 @@ public class CourseCacheService {
         this.seasonRepository = seasonRepository;
         this.departmentRepository = departmentRepository;
         this.courseRepository = courseRepository;
+    }
+
+    private static class CacheEntry<T> {
+        final T data;
+        final long timestamp;
+        CacheEntry(T data) {
+            this.data = data;
+            this.timestamp = System.currentTimeMillis();
+        }
+        boolean isExpired() {
+            return System.currentTimeMillis() - timestamp > CACHE_TTL_MS;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> T getFromCache(String key) {
+        CacheEntry<?> entry = memoryCache.get(key);
+        if (entry != null && !entry.isExpired()) {
+            return (T) entry.data;
+        }
+        return null;
+    }
+
+    private <T> void putInCache(String key, T data) {
+        memoryCache.put(key, new CacheEntry<>(data));
+    }
+
+    public void clearCache() {
+        memoryCache.clear();
     }
 
     /**
@@ -89,12 +123,16 @@ public class CourseCacheService {
     // Calendar functionality removed - not needed for course selection
 
     /**
-     * Get courses for specific season and department from database
+     * Get courses for specific season and department from database (with JOIN FETCH + cache)
      */
     public List<Course> getCourses(Long seasonId, Long departmentId) {
+        String cacheKey = "courses_" + seasonId + "_" + departmentId;
+        List<Course> cached = getFromCache(cacheKey);
+        if (cached != null) return cached;
+
         try {
             List<com.yeditepe.courseselector.entity.Course> entities = 
-                courseRepository.findBySeasonIdAndDepartmentId(seasonId, departmentId);
+                courseRepository.findBySeasonIdAndDepartmentIdWithSections(seasonId, departmentId);
             
             if (entities.isEmpty()) {
                 log.warn("No courses found in database for season {} dept {}, falling back to API", 
@@ -102,9 +140,12 @@ public class CourseCacheService {
                 return yeditepeApiService.getCourses(seasonId, departmentId);
             }
             
-            return entities.stream()
+            List<Course> result = entities.stream()
                 .map(this::convertCourseToDto)
                 .collect(Collectors.toList());
+
+            putInCache(cacheKey, result);
+            return result;
                 
         } catch (Exception e) {
             log.error("Failed to get courses from database, falling back to API", e);
@@ -113,21 +154,32 @@ public class CourseCacheService {
     }
 
     /**
-     * Get all courses for a season from database
+     * Get all courses for a season from database (with JOIN FETCH + cache)
      */
     public List<Course> getAllCoursesForSeason(Long seasonId) {
+        String cacheKey = "all_courses_" + seasonId;
+        List<Course> cached = getFromCache(cacheKey);
+        if (cached != null) {
+            log.info("Returning {} courses from memory cache for season {}", cached.size(), seasonId);
+            return cached;
+        }
+
         try {
             List<com.yeditepe.courseselector.entity.Course> entities = 
-                courseRepository.findBySeasonId(seasonId);
+                courseRepository.findBySeasonIdWithSections(seasonId);
             
             if (entities.isEmpty()) {
                 log.warn("No courses found in database for season {}, returning empty list", seasonId);
                 return Collections.emptyList();
             }
             
-            return entities.stream()
+            List<Course> result = entities.stream()
                 .map(this::convertCourseToDto)
                 .collect(Collectors.toList());
+
+            putInCache(cacheKey, result);
+            log.info("Cached {} courses for season {}", result.size(), seasonId);
+            return result;
                 
         } catch (Exception e) {
             log.error("Failed to get all courses for season from database", e);

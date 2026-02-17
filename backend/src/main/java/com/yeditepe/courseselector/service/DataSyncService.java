@@ -49,6 +49,7 @@ public class DataSyncService {
      * Cron format: second minute hour day-of-month month day-of-week
      */
     @Scheduled(cron = "${data.sync.cron:0 0 6 * * *}")
+    @Transactional
     public void scheduledSync() {
         log.info("🔄 Scheduled data sync started at {}", LocalDateTime.now());
         try {

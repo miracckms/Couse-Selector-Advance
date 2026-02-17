@@ -12,6 +12,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -26,15 +27,18 @@ public class AuthController {
     private final UserService userService;
     private final JwtUtils jwtUtils;
     private final RefreshTokenService refreshTokenService;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthController(AuthenticationManager authenticationManager,
                          UserService userService,
                          JwtUtils jwtUtils,
-                         RefreshTokenService refreshTokenService) {
+                         RefreshTokenService refreshTokenService,
+                         PasswordEncoder passwordEncoder) {
         this.authenticationManager = authenticationManager;
         this.userService = userService;
         this.jwtUtils = jwtUtils;
         this.refreshTokenService = refreshTokenService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping("/login")
@@ -75,6 +79,23 @@ public class AuthController {
                     roles
             ));
         } catch (Exception e) {
+            // Debug: check if user exists and password hash
+            try {
+                var userOpt = userService.findByUsername(loginRequest.getUsername());
+                if (userOpt.isPresent()) {
+                    var user = userOpt.get();
+                    System.out.println("LOGIN DEBUG: User found: " + user.getUsername() + ", active: " + user.getIsActive() + ", roles: " + user.getRoles());
+                    System.out.println("LOGIN DEBUG: Password hash starts with: " + (user.getPassword() != null ? user.getPassword().substring(0, Math.min(10, user.getPassword().length())) : "NULL"));
+                    System.out.println("LOGIN DEBUG: Password hash length: " + (user.getPassword() != null ? user.getPassword().length() : 0));
+                    boolean matches = passwordEncoder.matches(loginRequest.getPassword(), user.getPassword());
+                    System.out.println("LOGIN DEBUG: BCrypt matches: " + matches);
+                    System.out.println("LOGIN DEBUG: Input password: '" + loginRequest.getPassword() + "'");
+                } else {
+                    System.out.println("LOGIN DEBUG: User NOT FOUND: " + loginRequest.getUsername());
+                }
+            } catch (Exception ex) {
+                System.out.println("LOGIN DEBUG: Error checking user: " + ex.getMessage());
+            }
             e.printStackTrace();
             System.out.println("Login failed: " + e.getClass().getName() + ": " + e.getMessage());
             return ResponseEntity.badRequest()
